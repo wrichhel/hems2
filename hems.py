@@ -12,23 +12,8 @@ import csv
 import signal
 
 """
-1) Initialize software
-2) Initialize data collection hardware
-3) Initialize data storage
-4) Initialize connection to data archival host
-5) Data loop
-5.1)	Set up keyboard interrupt trap
-5.2)	For each connected sensor
-5.2.1)		Initiate reading
-5.2.2)		Retrieve reading into buffer
-5.3)	Write buffer to local storage
-5.4)	Write buffer to network storage
-5.5)	compute pause to next reading
-5.6)	Sleep until time for next reading
-6)	Handle KeyboardInterrupt
-6.1)		Close data file cleanly
-6.2		Log completion
-7) Exit
+Tag is the base class for channels in Hems. Subclasses extend Tag by adding units
+and scale functions as required
 """
 
 class Tag():
@@ -54,6 +39,11 @@ class TempTag(Tag):
 			scaledReading = CtoF(scaledReading)
 		return round(scaledReading,2)
 
+"""
+Hems.ini contains 2 sections - [DEFAULT] contains basic configuration items; it is
+followed by a number of [SENSORx] section, each of which defines a sensor that is to be
+read.
+"""
 
 def ReadConfigs(filename):
 	config = configparser.ConfigParser()
@@ -89,6 +79,9 @@ def InitializeSW():
 	logger = InitializeHemsLog(configDict)
 	return logger, configDict, rdgs
 
+"""
+Any hardware initialization would occur in this section - as of 240219 none is required.
+"""
 def InitializeHW(rdgsList, logger):
 	pass
 
@@ -106,7 +99,11 @@ def InitializeHemsLog(configDict):
 def CtoF(temp:float):
 	return(9. * temp/5.) + 32.
 
-
+"""
+Calculate the pause duration necessary to keep the readings reasonably evenly spaced based on 
+the desired scan interval. This implementation could be improved with a scheme in which a scan
+is initiated by a separate process that the OS is scheduling.
+"""
 def CalcPause(lastReadingTime, interval):
 	cT = lastReadingTime
 	roundedTime = datetime(cT.year,cT.month,cT.day,cT.hour,cT.minute,cT.second)
