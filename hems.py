@@ -33,11 +33,10 @@ class TempTag(Tag):
 		self.units = units
 
 	def ScaledReading(self):
-		rawReading = float(MCP3008(channel = self.chnl).value)
-		scaledReading = 100.*(rawReading * 3.3 - .5)
-		if(self.units == 'F'):
-			scaledReading = CtoF(scaledReading)
-		return round(scaledReading,2)
+		rawReading = float(MCP3008(channel = self.chnl).value) * 100
+		if self.units == "F":
+			return round(CtoF(rawReading),2)
+		return round(rawReading,2)
 
 """
 Hems.ini contains 2 sections - [DEFAULT] contains basic configuration items; it is
@@ -139,6 +138,7 @@ def WriteReadings(scanTime, rdgList, reading,fileName):
 			newFile = False
 			logger.info(f"New file opened: {fileName}")
 		writer.writerow(writeDict)
+		print(writeDict)
 	return csvfile
 
 def DataLoop(rdgList, configDict):
