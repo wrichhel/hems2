@@ -1,6 +1,7 @@
 #! /usr/bin/python
 import gpiozero as GPIO
 from gpiozero import MCP3008
+from gpiozero import LED
 import logging
 import socket
 import os
@@ -16,13 +17,19 @@ Tag is the base class for channels in Hems. Subclasses extend Tag by adding unit
 and scale functions as required
 """
 
+# GLOBAL LED if used
+
+led = LED(21)
+
+def Blink(state):
+	pass
+
 class Tag():
 	chnl = -1
 	loc = ''
 	def __init__(self, rdgChannel: int, rdgLocation: str):
 		self.chnl = rdgChannel
 		self.loc = rdgLocation
-		print(f'Channel {self.chnl}, location {self.loc}')
 
 	def __str__(self):
 		return f'Channel {self.chnl} is placed at: {self.loc}'
@@ -61,6 +68,7 @@ def ParseConfigs(config):
 			'units': config['DEFAULT']['UNITS'],
 		}
 	except KeyError as x:
+		
 		print (list(config['DEFAULT'].keys()))
 		exit (1)
 	dataPoints = list()
@@ -81,12 +89,12 @@ def InitializeSW():
 """
 Any hardware initialization would occur in this section - as of 240219 none is required.
 """
+
 def InitializeHW(rdgsList, logger):
-	pass
+	led.off()
 
 def InitializeHemsLog(configDict):
 	logFileName = configDict['dataDir'] + '/' + configDict['logFileName']
-	print (logFileName)
 	logging.basicConfig(format = "%(asctime)s %(levelname)s: %(message)s", 
 		filename = logFileName, 
 		filemode="a")
@@ -112,7 +120,6 @@ def CalcPause(lastReadingTime, interval):
 
 def SetFileName(dir,baseName):
 	fileName = dir+'/'+datetime.now().strftime('%Y%m%d')+baseName
-	print(fileName)
 	return fileName
 
 def WriteReadings(scanTime, rdgList, reading,fileName):
@@ -122,14 +129,13 @@ def WriteReadings(scanTime, rdgList, reading,fileName):
 	]
 	for chn in range(len(rdgList)):
 		fieldNames.append("chn_"+str(rdgList[chn].chnl))
-	logger.debug(fieldNames)
 
 	writeDict = {
 	"ScanTime" : scanTime.strftime('%Y-%m-%d %H:%M:%S')
 	}
 	for chn in range(len(rdgList)):
 		writeDict["chn_"+str(rdgList[chn].chnl)] = reading[chn]
-	logger.debug(writeDict)
+	logger.debug("Open logging file")
 	with open(fileName, "a", newline ="") as csvfile:
 		csvfile= open(fileName, "a", newline = "")
 		writer = csv.DictWriter(csvfile, fieldnames= fieldNames)
@@ -137,8 +143,8 @@ def WriteReadings(scanTime, rdgList, reading,fileName):
 			writer.writeheader()
 			newFile = False
 			logger.info(f"New file opened: {fileName}")
+		logger.debug("Writing reading")
 		writer.writerow(writeDict)
-		print(writeDict)
 	return csvfile
 
 def DataLoop(rdgList, configDict):
@@ -147,17 +153,21 @@ def DataLoop(rdgList, configDict):
 	readings = 0
 	try:
 		while True:
+			led.on()
 			readingTime = datetime.now()
 			dataFile = SetFileName(configDict['dataDir'],configDict["dataFileName"])
 			currentReadings = list()
 			scanInt = configDict["logInterval"]
 			for chn in range(configDict["sensorCount"]):
 				currentReadings.append(rdgList[chn].ScaledReading())
+			
+			logger.debug(f"Writing readings: {readings}")
 			f = WriteReadings(readingTime, rdgList, currentReadings, dataFile)
 			readings += 1
 			f.close()
+			sleep(.5)
 			thePause = CalcPause(readingTime,scanInt)
-			logger.debug(f'{readings}: {readingTime},{round(thePause,3)}')
+			led.off()
 			sleep(thePause)
 	except KeyboardInterrupt:
 		f.close()
